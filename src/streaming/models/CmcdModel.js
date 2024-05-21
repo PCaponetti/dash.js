@@ -66,6 +66,9 @@ function CmcdModel() {
         _bufferLevelStarved,
         _initialMediaRequestsDone;
 
+    let _startTime = Date.now();
+    let _firstLoad = true;
+
     let context = this.context;
     let eventBus = EventBus(context).getInstance();
     let settings = Settings(context).getInstance();
@@ -439,6 +442,14 @@ function CmcdModel() {
             _initialMediaRequestsDone[mediaType] = true;
         }
 
+        // This function is currently only called when the HTTP loader needs to
+        // send another request to the CDN for a segment. We can beacon RUM events
+        // from here knowing that it is tied to this event.
+        console.log("TODO-LOG-RUM: Throughput: " + data.mtp);
+        console.log("TODO-LOG-RUM: Bitrate: " + data.br);
+        console.log("TODO-LOG-RUM: Buffer Level: " + data.bl);
+        console.log("TODO-LOG-RUM: Buffer Starved: " + data.bs);
+
         return data;
     }
 
@@ -594,10 +605,15 @@ function CmcdModel() {
 
     function _onBufferLevelStateChanged(data) {
         try {
+            if (_firstLoad && data.state && data.state === MediaPlayerEvents.BUFFER_LOADED) {
+                _firstLoad = false;
+                console.log("TODO-LOG-RUM: Loaded! Time: " + (Date.now() - _startTime) + "ms");
+            }
             if (data.state && data.mediaType) {
                 if (data.state === MediaPlayerEvents.BUFFER_EMPTY) {
 
                     if (!_bufferLevelStarved[data.mediaType]) {
+                        console.log("TODO-LOG-RUM: Buffer Starved!");
                         _bufferLevelStarved[data.mediaType] = true;
                     }
                     if (!_isStartup[data.mediaType]) {
@@ -611,6 +627,7 @@ function CmcdModel() {
     }
 
     function _onPlaybackSeeked() {
+        console.log("TODO-LOG-RUM: Player seek");
         for (let key in _bufferLevelStarved) {
             if (_bufferLevelStarved.hasOwnProperty(key)) {
                 _bufferLevelStarved[key] = true;
